@@ -1,0 +1,12 @@
+{
+	"author": [
+		"Jack_Xu"
+	],
+	"description": "Play song by NeteaseMusic links!",
+	"install_msg": "Thank you for installing! use `[p]wyy <song_url>` to play.",
+	"tags": [
+		"audio"
+	],
+	"min_bot_version": "3.4.0",
+	"end_user_data_statement": "This cog does not store end user data."
+}
