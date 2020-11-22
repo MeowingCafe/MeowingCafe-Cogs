@@ -12,7 +12,7 @@ class Wyyyy(commands.Cog):
 	async def wyy(self, ctx, *, sharelink: str):
 		"""Play a netease music share link."""
 		if "song?" in sharelink:
-			rid = re.search(r'?id=(\d*)', sharelink)
+			rid = re.search(r'\?id=(\d*)', sharelink)
 		elif "song/" in sharelink:
 			rid = re.search(r'song/(\d*)/', sharelink)
 			if rid:
