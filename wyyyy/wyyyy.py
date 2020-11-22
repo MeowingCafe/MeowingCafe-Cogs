@@ -63,8 +63,11 @@ class Wyyyy(commands.Cog):
 			cookies = {"os": "ios"}
 			songapi = 'http://music.163.com/weapi/song/enhance/player/url?csrf_token='
 			r = requests.post(songapi, headers=headers, data=param_data, verify=False, cookies=cookies)
-			url_best = re.search(r'http.*\.mp3',r.text).group()
-			play = ctx.bot.get_command("play")
-			await ctx.invoke(play, query = url_best)
+			if r:
+				url_best = re.search(r'http.*\.mp3',r.text).group()
+				play = ctx.bot.get_command("play")
+				await ctx.invoke(play, query = url_best)
+			else:
+				await ctx.send("Can't get this song. Might need netease music VIP.")
 		else:
 			await ctx.send("Can't find song id!")
