@@ -11,7 +11,7 @@ from Crypto.Cipher import AES
 class Wyyyy(commands.Cog):
 	"""Play song by netease music links!"""
 	
-	__author__ = "Walnut"
+	__author__ = "JackXu"
 	__version__ = "0.3.1"
 	
 	default_global_settings = {"user_cookies": ""}
