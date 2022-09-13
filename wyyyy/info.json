@@ -1,5 +1,5 @@
 {
-	"author": ["Jack_Xu"],
+	"author": ["Walnut"],
 	"description": "Play song by NeteaseMusic links!",
 	"install_msg": "Thank you for installing! use `[p]wyy <song_url>` to play.",
 	"tags": ["audio"],
