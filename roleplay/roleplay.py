@@ -22,15 +22,15 @@ class Roleplay(commands.Cog):
 		"""Start playing."""
 		if char_name is not None:
 			name = char_name.display_name
-			avatar = char_name.avatar
+			avatar = str(char_name.avatar_url)
 			payload = {
-				'content': message(),
-				'username': name(),
-				'avatar_url': avatar()
+				'content': message,
+				'username': name,
+				'avatar_url': avatar
 			}
-			send = requests.post(await self.config.default_webhook(), data=payload)
-		else:
-			await ctx.send("Nothing to do.")
+			webhook_url = await self.config.default_webhook()
+			#await ctx.send(payload + webhook_url)
+			send = requests.post(webhook_url, data=payload)
 			
 	@commands.group()
 	async def roleplayset(self, ctx: commands.Context):
@@ -39,8 +39,7 @@ class Roleplay(commands.Cog):
 	@roleplayset.group()
 	async def char(self, ctx: commands.Context):
 		"""Manage characters."""
-	
-	@roleplayset.group()
+
+	@roleplayset.command()
 	async def webhook(self, ctx: commands.Context, *, webhook_url: str):
-		"""Manage webhooks."""
 		await self.config.default_webhook.set(webhook_url)
