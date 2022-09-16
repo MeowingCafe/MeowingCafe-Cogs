@@ -17,14 +17,13 @@ class Roleplay(commands.Cog):
 		self.config.register_guild(**self.default_guild)
 		self.config.register_member(**self.default_member)
 
-	async def send(self, guild: commands.Context.guild, author: commands.Context.author, name: str, avatar: str, message: str, webhook_url: str = None):
+	async def send(self, author: commands.Context.author, name: str, avatar: str, message: str, webhook_url: str = None):
 		payload = {
 			'content': message,
 			'username': name,
 			'avatar_url': avatar
 		}
 		if webhook_url is None:
-			webhook_dict = await self.config.guild(guild).webhooks()
 			perf_dict = await self.config.member(author).interactive_perf()
 			webhook_url = perf_dict["webhook"]
 		#await ctx.send(payload + webhook_url)
@@ -32,7 +31,7 @@ class Roleplay(commands.Cog):
 
 	async def webhook_check(self, guild: commands.Context.guild, webhook: str):
 		webhook_dict = await self.config.guild(guild).webhooks()
-		for webhook_k, webhook_v in webhook_dict:
+		for webhook_k in webhook_dict:
 			if webhook_k == webhook:
 				return True
 		return False
@@ -50,7 +49,7 @@ class Roleplay(commands.Cog):
 				webhook_id = perf_dict["webhook"]
 				character_dict = await self.config.guild(guild).characters()
 				char_info = character_dict[char_id]
-				await self.send(guild, author, char_info["username"], char_info["avatar_url"], message.content, webhook_id)
+				await self.send(author, char_info["username"], char_info["avatar_url"], message.content, webhook_id)
 
 	@commands.group()
 	async def roleplay(self, ctx):
@@ -104,17 +103,17 @@ class Roleplay(commands.Cog):
 		char_info = character_dict[char_id]
 		#await ctx.send(char_info)
 		if await self.webhook_check(ctx.guild, webhook_id):
-			await self.send(ctx.guild, ctx.author, char_info["username"], char_info["avatar_url"], message, webhook_id)
+			await self.send(ctx.author, char_info["username"], char_info["avatar_url"], message, webhook_id)
 		else:
-			await self.send(ctx.guild, ctx.author, char_info["username"], char_info["avatar_url"], webhook_id + message)
+			await self.send(ctx.author, char_info["username"], char_info["avatar_url"], webhook_id + message)
 
 	@roleplay.command(name="disg")
 	async def _member_execute(self, ctx: commands.Context, member_name: discord.Member, webhook_id: str = None, *, message):
 		"""Disguise a user to send message."""
 		if await self.webhook_check(ctx.guild, webhook_id):
-			await self.send(ctx.guild, ctx.author, member_name.display_name, str(member_name.avatar_url), message, webhook_id)
+			await self.send(ctx.author, member_name.display_name, str(member_name.avatar_url), message, webhook_id)
 		else:
-			await self.send(ctx.guild, ctx.author, member_name.display_name, str(member_name.avatar_url), webhook_id + message)
+			await self.send(ctx.author, member_name.display_name, str(member_name.avatar_url), webhook_id + message)
 
 	@roleplay.group()
 	async def webhook(self, ctx):
