@@ -30,7 +30,7 @@ class Roleplay(commands.Cog):
 		#await ctx.send(payload + webhook_url)
 		send = requests.post(webhook_url, data=payload)
 
-	async def webhook_check(self, webhook: str):
+	async def webhook_check(self, guild: commands.Context.guild, webhook: str):
 		webhook_dict = await self.config.guild(guild).webhooks()
 		for webhook_k, webhook_v in webhook_dict:
 			if webhook_k == webhook:
@@ -53,7 +53,7 @@ class Roleplay(commands.Cog):
 				await self.send(guild, author, char_info["username"], char_info["avatar_url"], message.content, webhook_id)
 
 	@commands.group()
-	async def roleplay(self, ctx: commands.Context):
+	async def roleplay(self, ctx):
 		"""Control your role-playing experience."""
 
 	@roleplay.command(name="link")
@@ -103,7 +103,7 @@ class Roleplay(commands.Cog):
 		character_dict = await self.config.guild(ctx.guild).characters()
 		char_info = character_dict[char_id]
 		#await ctx.send(char_info)
-		if await self.webhook_check(webhook_id):
+		if await self.webhook_check(ctx.guild, webhook_id):
 			await self.send(ctx.guild, ctx.author, char_info["username"], char_info["avatar_url"], message, webhook_id)
 		else:
 			await self.send(ctx.guild, ctx.author, char_info["username"], char_info["avatar_url"], webhook_id + message)
@@ -111,13 +111,13 @@ class Roleplay(commands.Cog):
 	@roleplay.command(name="disg")
 	async def _member_execute(self, ctx: commands.Context, member_name: discord.Member, webhook_id: str = None, *, message):
 		"""Disguise a user to send message."""
-		if await self.webhook_check(webhook_id):
+		if await self.webhook_check(ctx.guild, webhook_id):
 			await self.send(ctx.guild, ctx.author, member_name.display_name, str(member_name.avatar_url), message, webhook_id)
 		else:
 			await self.send(ctx.guild, ctx.author, member_name.display_name, str(member_name.avatar_url), webhook_id + message)
 
 	@roleplay.group()
-	async def webhook(self, ctx: commands.Context):
+	async def webhook(self, ctx):
 		"""Manage webhooks."""
 
 	@webhook.command(name="add", aliases=["create"])
@@ -141,7 +141,7 @@ class Roleplay(commands.Cog):
 		await ctx.send(webhook_dict)
 
 	@roleplay.group()
-	async def char(self, ctx: commands.Context):
+	async def char(self, ctx):
 		"""Manage characters."""
 
 	@char.command(name="add")
