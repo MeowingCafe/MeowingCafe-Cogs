@@ -48,7 +48,7 @@ class Roleplay(commands.Cog):
 	async def on_message(self, ctx: discord.Message):
 		perf_dict = await self.config.member(ctx.author).interactive_perf()
 		if perf_dict["status"] is True:
-			if perf_dict["backstage"] == ctx.channel:
+			if perf_dict["backstage"] == ctx.channel.id:
 				char_id = perf_dict["char_id"]
 				webhook = perf_dict["webhook"]
 				character_dict = await self.config.guild(ctx.guild).characters()
