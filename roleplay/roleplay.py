@@ -2,7 +2,6 @@ from redbot.core import commands, Config
 from redbot.core import checks
 import discord
 import requests
-import re
 from string import Formatter
 from typing import Union, Optional
 
@@ -28,12 +27,12 @@ class Roleplay(commands.Cog):
 		#await ctx.send(payload + webhook_url)
 		send = requests.post(webhook, data=payload)
 
-	async def webhook_check(self, guild: commands.Context.guild, webhook: Union[discord.TextChannel]):
-		webhook_dict = await self.config.guild(guild).webhooks()
-		for webhook_k in webhook_dict:
-			if webhook_k == str(webhook.id):
-				return True
-		return False
+	# async def webhook_check(self, guild: commands.Context.guild, webhook: Union[discord.TextChannel]):
+	# 	webhook_dict = await self.config.guild(guild).webhooks()
+	# 	for webhook_k in webhook_dict:
+	# 		if webhook_k == str(webhook.id):
+	# 			return True
+	# 	return False
 
 
 	@commands.Cog.listener()
@@ -49,13 +48,14 @@ class Roleplay(commands.Cog):
 				char_info = character_dict[char_id]
 				await self.send(ctx, char_info["username"], char_info["avatar_url"], ctx.content, webhook)
 
-	@commands.group()
+	@commands.group(aliases=["rph"])
 	async def roleplay(self, ctx):
 		"""Control your role-playing experience."""
 
-	@roleplay.command(name="link")
+	@roleplay.command(name="link", usage="<channel_OR_webhook>")
+	@commands.guild_only()
 	async def _link(self, ctx: commands.Context, webhook: Union[discord.TextChannel, str]):
-		"""Link a webhook."""
+		"""Set your default webhook for send message."""
 		if isinstance(webhook, discord.TextChannel):
 			webhook_dict = await self.config.guild(ctx.guild).webhooks()
 			webhook_url = webhook_dict[str(webhook.id)]
@@ -66,9 +66,19 @@ class Roleplay(commands.Cog):
 		# await ctx.send(perf_dict)
 		await self.config.member(ctx.author).interactive_perf.set(perf_dict)
 
-	@roleplay.command(name="start")
+	@roleplay.command(name="start", usage="<char_id> [backstage] [channel_OR_webhook]")
+	@commands.guild_only()
 	async def _perf_on(self, ctx: commands.Context, char_id: str, channel: Optional[discord.TextChannel], webhook: Optional[Union[discord.TextChannel, str]]):
-		"""Start interactive performance."""
+		"""
+		Start interactive performance.
+		
+		 
+		
+		**Arguments:**
+		`<char_id>` - The character used to send a message.
+		`[backstage]` - The channel used to send your message.
+		`[channel_OR_webhook]` - The receiving channel for your message.
+		"""
 		perf_dict = await self.config.member(ctx.author).interactive_perf()
 		perf_dict.update({"status": True})
 		perf_dict.update({"char_id": char_id})
@@ -77,21 +87,33 @@ class Roleplay(commands.Cog):
 				webhook_dict = await self.config.guild(ctx.guild).webhooks()
 				webhook_url = webhook_dict[str(webhook.id)]
 			else:
-				webhook_url = webhook
+				webhook_url = webhook #unused?
 		if channel is not None:
 			perf_dict.update({"backstage": channel.id})
 		await self.config.member(ctx.author).interactive_perf.set(perf_dict)
+		await ctx.send("*BUZZER NOISE*")
 
 	@roleplay.command(name="stop")
+	@commands.guild_only()
 	async def _perf_off(self, ctx: commands.Context):
 		"""Stop interactive performance."""
 		perf_dict = await self.config.member(ctx.author).interactive_perf()
 		perf_dict.update({"status": False})
 		await self.config.member(ctx.author).interactive_perf.set(perf_dict)
+		await ctx.send("SHOW IS OVER.")
 
-	@roleplay.command(name="cast")
-	async def _char_execute(self, ctx: commands.Context, char: Union[discord.Member, str], webhook: Optional[discord.TextChannel], *, message: str):
-		"""Cast a character to send message."""
+	@roleplay.command(name="cast", usage="<char_id_OR_user> [channel] <message>")
+	@commands.guild_only()
+	async def _execute(self, ctx: commands.Context, char: Union[discord.Member, str], webhook: Optional[discord.TextChannel], *, message: str):
+		"""
+		Send message using character or user.
+		
+		 
+		
+		**Arguments:**
+		`<char_id_OR_user>` - The character or user used to send a message.
+		`[channel]` - The receiving channel for your message.
+		"""
 		if isinstance(char, discord.Member):
 			name = char.display_name
 			avatar_url = str(char.avatar_url)
@@ -100,7 +122,7 @@ class Roleplay(commands.Cog):
 			try:
 				char_info = character_dict[char]
 			except KeyError as reason:
-				await ctx.send("Please check the character id or user id.")
+				await ctx.send("Invalid character or user.")
 				return
 			name = char_info["username"]
 			avatar_url = char_info["avatar_url"]
@@ -111,74 +133,94 @@ class Roleplay(commands.Cog):
 		else:
 			webhook_dict = await self.config.guild(ctx.guild).webhooks()
 			webhook_url = webhook_dict[str(webhook.id)]
-		await self.send(ctx, name, avatar_url, message, webhook_url)
-
-	@roleplay.command(name="disg")
-	async def _member_execute(self, ctx: commands.Context, member_name: discord.Member, webhook: Optional[discord.TextChannel], *, message: str):
-		"""Disguise a user to send message."""
-		if webhook is None:
-			perf_dict = await self.config.member(ctx.author).interactive_perf()
-			webhook_url = perf_dict["webhook"]
-		else:
-			webhook_dict = await self.config.guild(ctx.guild).webhooks()
-			webhook_url = webhook_dict[str(webhook.id)]
-		await self.send(ctx, member_name.display_name, str(member_name.avatar_url), message, webhook_url)
-		
-
-	@roleplay.group()
-	async def webhook(self, ctx):
-		"""Manage webhooks."""
-
-	@webhook.command(name="add", aliases=["create"])
-	async def _add_webhook(self, ctx: commands.Context, webhook: Union[discord.TextChannel], webhook_url: str):
-		"""Add a webhook."""
-		webhook_dict = await self.config.guild(ctx.guild).webhooks()
-		webhook_dict.update({webhook.id: webhook_url})
-		await self.config.guild(ctx.guild).webhooks.set(webhook_dict)
-		await ctx.send("Webhook created.")
-
-	@webhook.command(name="delete", aliases=["del", "remove"])
-	async def _del_webhook(self, ctx: commands.Context, webhook: Union[discord.TextChannel]):
-		"""Delete a webhook."""
-		webhook_dict = await self.config.guild(ctx.guild).webhooks()
-		del webhook_dict[str(webhook.id)]
-		await self.config.guild(ctx.guild).webhooks.set(webhook_dict)
-		await ctx.send("Webhook deleted.")
-
-	@webhook.command(name="list")
-	async def _list_webhook(self, ctx: commands.Context):
-		"""List webhooks."""
-		webhook_dict = await self.config.guild(ctx.guild).webhooks()
-		await ctx.send(webhook_dict)
+		await self.send(ctx, name, avatar_url, message, webhook_url)	
 
 	@roleplay.group()
 	async def char(self, ctx):
 		"""Manage characters."""
 
-	@char.command(name="add")
+	@char.command(name="add", aliases=["create"], usage="<char_id> <name> <avatar_url>")
+	@commands.guild_only()
 	async def _add_char(self, ctx: commands.Context, char_id: str, username: str, avatar_url: str):
-		"""Add a character."""
+		"""
+		Add a character for this server.
+		
+		 
+
+		**Arguments:**
+		`<char_id>` - The internal name of the character.
+		`<name>` - The display name of the character.
+		`<avatar_url>` - The url of character's avatar.
+		"""
 		character_dict = await self.config.guild(ctx.guild).characters()
 		character_dict.update({char_id: {"username": username, "avatar_url": avatar_url}})
 		await self.config.guild(ctx.guild).characters.set(character_dict)
-		await ctx.send("Character {name} created as {chname}.".format(name=username, chname=char_id))
+		await ctx.send("Character {name} is created as {char_id}.".format(name=username, char_id=char_id))
 
 	@char.command(name="delete", aliases=["del", "remove"])
+	@commands.guild_only()
 	async def _del_char(self, ctx: commands.Context, char_id: str):
-		"""Delete a character."""
+		"""Delete a character on this server."""
 		character_dict = await self.config.guild(ctx.guild).characters()
 		del character_dict[char_id]
 		await self.config.guild(ctx.guild).characters.set(character_dict)
+		await ctx.send("Character deleted.")
 
 	@char.command(name="list")
+	@commands.guild_only()
 	async def _list_char(self, ctx: commands.Context):
-		"""List characters."""
+		"""List available characters on this server."""
 		character_dict = await self.config.guild(ctx.guild).characters()
 		await ctx.send(character_dict)
+		# WIP
 
-	@roleplay.command()
-	@checks.admin_or_permissions(manage_guild=True)
-	async def clear(self, ctx):
+	@commands.group(aliases=["rphset"])
+	async def roleplayset(self, ctx):
+		"""Manage role-playing configurations."""	
+
+	@roleplayset.group()
+	async def webhook(self, ctx):
 		"""Manage webhooks."""
-		await self.config.guild(ctx.guild).clear()
-		await self.config.clear_all_members(ctx.guild)
+
+	@webhook.command(name="add", aliases=["create"])
+	@commands.guild_only()
+	@checks.admin_or_permissions(manage_webhooks=True)
+	async def _add_webhook(self, ctx: commands.Context, channel: discord.TextChannel, webhook_url: str):
+		"""Add a webhook for this server."""
+		webhook_dict = await self.config.guild(ctx.guild).webhooks()
+		webhook_dict.update({channel.id: webhook_url})
+		await self.config.guild(ctx.guild).webhooks.set(webhook_dict)
+		await ctx.send("Webhook is associated with channel {channel} now.".format(channel=channel))
+
+	@webhook.command(name="delete", aliases=["del", "remove"])
+	@commands.guild_only()
+	@checks.admin_or_permissions(manage_webhooks=True)
+	async def _del_webhook(self, ctx: commands.Context, channel: discord.TextChannel):
+		"""Delete a webhook on this server.."""
+		webhook_dict = await self.config.guild(ctx.guild).webhooks()
+		del webhook_dict[str(channel.id)]
+		await self.config.guild(ctx.guild).webhooks.set(webhook_dict)
+		await ctx.send("Webhook deleted.")
+
+	@webhook.command(name="list")
+	@commands.guild_only()
+	@checks.admin_or_permissions(manage_webhooks=True)
+	async def _list_webhook(self, ctx: commands.Context):
+		"""List available webhooks on this server."""
+		webhook_dict = await self.config.guild(ctx.guild).webhooks()
+		await ctx.send(webhook_dict)
+		# WIP
+
+	@roleplayset.command()
+	@commands.guild_only()
+	@checks.admin_or_permissions(manage_guild=True)
+	async def clear(self, ctx, confirm: bool):
+		"""
+		Clear all configurations for this guild.
+		
+		Include characters, webhooks, and member settings.
+		"""
+		if confirm:
+			await self.config.guild(ctx.guild).clear()
+			await self.config.clear_all_members(ctx.guild)
+			await ctx.send("ALL CLEAR!")
