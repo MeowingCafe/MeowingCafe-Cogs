@@ -1,19 +1,27 @@
-from redbot.core import commands, Config
-from redbot.core import checks
-import discord
-import requests
+import io
+from asyncio import sleep
 from string import Formatter
 from typing import Union, Optional
 
+import discord
+import requests
+import yaml
+
+from redbot.core import commands, Config, checks
+from redbot.core.bot import Red
+from redbot.core.data_manager import cog_data_path
+
+
 class Roleplay(commands.Cog):
 	"""Use webhook for Role-Playing."""
-	
+
 	__author__ = "CafeMeowNeow"
 	__version__ = "0.6.1"
-	
+
 	default_guild = {"webhooks": {}, "characters": {}}
 	default_member = {"interactive_perf": {"status": False}}
-	def __init__(self):
+	def __init__(self, bot: Red):
+		self.bot = bot
 		self.config = Config.get_conf(self, identifier=2817739402)
 		self.config.register_guild(**self.default_guild)
 		self.config.register_member(**self.default_member)
@@ -39,6 +47,10 @@ class Roleplay(commands.Cog):
 	async def on_message(self, ctx: discord.Message):
 		if ctx.author.bot:
 			return
+		for i in await self.bot.get_valid_prefixes(ctx.guild):
+			if ctx.content.startswith(i):
+				return
+
 		perf_dict = await self.config.member(ctx.author).interactive_perf()
 		if perf_dict["status"] is True:
 			if perf_dict["backstage"] == ctx.channel.id:
@@ -55,12 +67,13 @@ class Roleplay(commands.Cog):
 	@roleplay.command(name="link", usage="<channel_OR_webhook>")
 	@commands.guild_only()
 	async def _link(self, ctx: commands.Context, webhook: Union[discord.TextChannel, str]):
-		"""Set your default webhook for send message."""
+		"""Set the default webhook to use when sending message."""
 		if isinstance(webhook, discord.TextChannel):
 			webhook_dict = await self.config.guild(ctx.guild).webhooks()
 			webhook_url = webhook_dict[str(webhook.id)]
 		else:
 			webhook_url = webhook
+
 		perf_dict = await self.config.member(ctx.author).interactive_perf()
 		perf_dict.update({"webhook": webhook_url})
 		# await ctx.send(perf_dict)
@@ -71,9 +84,9 @@ class Roleplay(commands.Cog):
 	async def _perf_on(self, ctx: commands.Context, char_id: str, channel: Optional[discord.TextChannel], webhook: Optional[Union[discord.TextChannel, str]]):
 		"""
 		Start interactive performance.
-		
-		 
-		
+
+		Will keep repost your message on a specific "backstage" channel.
+
 		**Arguments:**
 		`<char_id>` - The character used to send a message.
 		`[backstage]` - The channel used to send your message.
@@ -87,9 +100,12 @@ class Roleplay(commands.Cog):
 				webhook_dict = await self.config.guild(ctx.guild).webhooks()
 				webhook_url = webhook_dict[str(webhook.id)]
 			else:
-				webhook_url = webhook #unused?
+				webhook_url = webhook
+			perf_dict.update({"webhook": webhook_url})
+
 		if channel is not None:
 			perf_dict.update({"backstage": channel.id})
+
 		await self.config.member(ctx.author).interactive_perf.set(perf_dict)
 		await ctx.send("*BUZZER NOISE*")
 
@@ -107,9 +123,9 @@ class Roleplay(commands.Cog):
 	async def _execute(self, ctx: commands.Context, char: Union[discord.Member, str], webhook: Optional[discord.TextChannel], *, message: str):
 		"""
 		Send message using character or user.
-		
-		 
-		
+
+		Please use `\\` to escape quotes in the message.
+
 		**Arguments:**
 		`<char_id_OR_user>` - The character or user used to send a message.
 		`[channel]` - The receiving channel for your message.
@@ -126,6 +142,7 @@ class Roleplay(commands.Cog):
 				return
 			name = char_info["username"]
 			avatar_url = char_info["avatar_url"]
+
 		#await ctx.send(char_info)
 		if webhook is None:
 			perf_dict = await self.config.member(ctx.author).interactive_perf()
@@ -133,7 +150,7 @@ class Roleplay(commands.Cog):
 		else:
 			webhook_dict = await self.config.guild(ctx.guild).webhooks()
 			webhook_url = webhook_dict[str(webhook.id)]
-		await self.send(ctx, name, avatar_url, message, webhook_url)	
+		await self.send(ctx, name, avatar_url, message, webhook_url)
 
 	@roleplay.group()
 	async def char(self, ctx):
@@ -144,8 +161,8 @@ class Roleplay(commands.Cog):
 	async def _add_char(self, ctx: commands.Context, char_id: str, username: str, avatar_url: str):
 		"""
 		Add a character for this server.
-		
-		 
+
+		You can use the image link on discord as an avatar.
 
 		**Arguments:**
 		`<char_id>` - The internal name of the character.
@@ -173,6 +190,25 @@ class Roleplay(commands.Cog):
 		character_dict = await self.config.guild(ctx.guild).characters()
 		await ctx.send(character_dict)
 		# WIP
+
+	@roleplay.command()
+	async def playscript(self, ctx, script: str, webhook: discord.TextChannel):
+		"""Play a script."""
+		data_path = cog_data_path(self)
+		guild_path = data_path.joinpath(str(ctx.message.guild.id))
+		file_path = guild_path / f"{script}.yaml"
+
+		webhook_dict = await self.config.guild(ctx.guild).webhooks()
+		webhook_url = webhook_dict[str(webhook.id)]
+
+		file = open(file_path, 'rb')
+		script = yaml.safe_load(file)
+		lines = script['lines']
+		for line in lines:
+			chars = script['chars']
+			char = line['char']
+			await self.send(ctx, chars[char]['name'], chars[char]['avatar'], line['text'], webhook_url)
+			await sleep(line['time'])
 
 	@commands.group(aliases=["rphset"])
 	async def roleplayset(self, ctx):
@@ -217,10 +253,35 @@ class Roleplay(commands.Cog):
 	async def clear(self, ctx, confirm: bool):
 		"""
 		Clear all configurations for this guild.
-		
+
 		Include characters, webhooks, and member settings.
 		"""
 		if confirm:
 			await self.config.guild(ctx.guild).clear()
 			await self.config.clear_all_members(ctx.guild)
 			await ctx.send("ALL CLEAR!")
+
+	@roleplayset.group()
+	async def script(self, ctx):
+		"""Manage scripts."""
+
+	@script.command()
+	@commands.guild_only()
+	@checks.admin_or_permissions(manage_guild=True)
+	async def upload(self, ctx):
+		"""Upload script."""
+		file = ctx.message.attachments[0]
+		name = file.filename.rsplit(".", 1)[0].casefold()
+
+		data_path = cog_data_path(self)
+		guild_path = data_path.joinpath(str(ctx.message.guild.id))
+		if not guild_path.exists():
+			guild_path.mkdir()
+
+		file_path = guild_path / f"{name}.yaml"
+		#await ctx.send(file_path)
+		b = io.BytesIO(await file.read())
+		script = yaml.safe_load(b)
+		b.seek(0)
+		with file_path.open("wb") as p:
+			p.write(b.read())
