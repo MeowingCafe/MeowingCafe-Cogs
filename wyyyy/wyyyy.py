@@ -1,60 +1,58 @@
-from redbot.core import commands
-from redbot.cogs import audio
-from redbot.core import Config
-from redbot.core import checks
-from json import loads
-import json
 import base64
-import requests
+import json
 import re
+
+import requests
 from Crypto.Cipher import AES
+
+from redbot.core import commands, Config, checks
+
+
 class Wyyyy(commands.Cog):
 	"""Play song by netease music links!"""
 	
-	__author__ = "Walnut"
-	__version__ = "0.3.1"
+	__author__ = "CafeMeowNeow"
+	__version__ = "0.3.2"
 	
-	default_global_settings = {"user_cookies": ""}
+	default_guild = {"guild_cookies": ""}
 	def __init__(self):
 		self.config = Config.get_conf(self, identifier=2817739401)
-		self.config.register_global(**self.default_global_settings)
-	
-	
-	
+		self.config.register_guild(**self.default_guild)
+
+
 	@commands.group()
-	@checks.admin_or_permissions(manage_guild=True)
 	async def wyyset(self, ctx: commands.Context):
 		"""Manage settings."""
 	
 	@wyyset.group()
 	async def cookie(self, ctx: commands.Context):
 		"""Cookie settings."""
-	
+
 	@cookie.command()
+	@commands.guild_only()
+	@checks.admin_or_permissions(manage_guild=True)
 	async def set(self, ctx: commands.Context, *, cookies_string: str):
 		"""Set cookie.
 		The useful keys are \"__crsf\",\"MUSIC_U\""""
 		cookies_dict = {}
 		cookies_string.replace(" ", "")
-		#await ctx.send(cookies_string.split(';'))
 		for e in cookies_string.split(';'):
-			#await ctx.send(e)
 			k, v = e.split('=', 1)
-			#await ctx.send(k)
-			#await ctx.send(v)
 			cookies_dict[k] = v
-		await self.config.user_cookies.set(cookies_dict)
+		await self.config.guild(ctx.guild).set(cookies_dict)
 		await ctx.send("Cookie set complete.")
 	
 	@cookie.command()
+	@commands.guild_only()
+	@checks.admin_or_permissions(manage_guild=True)
 	async def delete(self, ctx: commands.Context):
 		"""Delete cookie."""
 		cookies_dict = {}
-		await self.config.user_cookies.set(cookies_dict)
+		await self.config.guild(ctx.guild).set(cookies_dict)
 		await ctx.send("They are clean now.")
-	
-		
+
 	@commands.command()
+	@commands.guild_only()
 	async def wyy(self, ctx, *, sharelink: str):
 		"""Play a netease music share link."""
 		rid = None
@@ -103,9 +101,9 @@ class Wyyyy(commands.Cog):
 				"Host": "music.163.com",
 				"X-Real-IP": "27.38.4.87"
 			}
-			u_cookies = await self.config.user_cookies()
+			guild_cookies = await self.config.guild(ctx.guild).guild_cookies()
 			cookies = {"os": "ios"}
-			cookies.update(u_cookies)
+			cookies.update(guild_cookies)
 			songapi = 'http://music.163.com/weapi/song/enhance/player/url?csrf_token='
 			r = requests.post(songapi, headers=headers, data=param_data, verify=False, cookies=cookies)
 			real_url = re.search(r'http.*\.((mp3)|(flac))',r.text)
