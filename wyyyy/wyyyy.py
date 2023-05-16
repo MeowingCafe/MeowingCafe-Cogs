@@ -12,12 +12,14 @@ class Wyyyy(commands.Cog):
 	"""Play song by netease music links!"""
 	
 	__author__ = "CafeMeowNeow"
-	__version__ = "0.3.2"
+	__version__ = "0.3.3"
 	
-	default_guild = {"guild_cookies": ""}
 	def __init__(self):
+		default_guild = {
+			"guild_cookies": None
+		}
 		self.config = Config.get_conf(self, identifier=2817739401)
-		self.config.register_guild(**self.default_guild)
+		self.config.register_guild(**default_guild)
 
 
 	@commands.group()
@@ -39,7 +41,7 @@ class Wyyyy(commands.Cog):
 		for e in cookies_string.split(';'):
 			k, v = e.split('=', 1)
 			cookies_dict[k] = v
-		await self.config.guild(ctx.guild).set(cookies_dict)
+		await self.config.guild(ctx.guild).guild_cookies.set(cookies_dict)
 		await ctx.send("Cookie set complete.")
 	
 	@cookie.command()
@@ -48,7 +50,7 @@ class Wyyyy(commands.Cog):
 	async def delete(self, ctx: commands.Context):
 		"""Delete cookie."""
 		cookies_dict = {}
-		await self.config.guild(ctx.guild).set(cookies_dict)
+		await self.config.guild(ctx.guild).guild_cookies.set(cookies_dict)
 		await ctx.send("They are clean now.")
 
 	@commands.command()
@@ -110,6 +112,8 @@ class Wyyyy(commands.Cog):
 			if real_url:
 				url_best = real_url.group()
 				play = ctx.bot.get_command("play")
+				if not play:
+					return await ctx.send("Audio cog not loaded!")
 				await ctx.invoke(play, query = url_best)
 			else:
 				await ctx.send("Can't get this song. Might need netease music VIP.")
