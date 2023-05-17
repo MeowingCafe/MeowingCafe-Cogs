@@ -16,7 +16,7 @@ class Wyyyy(commands.Cog):
 	
 	def __init__(self):
 		default_guild = {
-			"guild_cookies": None
+			"guild_cookies": ""
 		}
 		self.config = Config.get_conf(self, identifier=2817739401)
 		self.config.register_guild(**default_guild)

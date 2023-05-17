@@ -16,15 +16,22 @@ class Roleplay(commands.Cog):
 	"""Use webhook for Role-Playing."""
 
 	__author__ = "CafeMeowNeow"
-	__version__ = "0.6.1"
+	__version__ = "0.6.2"
 
-	default_guild = {"webhooks": {}, "characters": {}}
-	default_member = {"interactive_perf": {"status": False}}
 	def __init__(self, bot: Red):
 		self.bot = bot
+		default_guild = {
+			"webhooks": {},
+			"characters": {}
+		}
+		default_member = {
+			"interactive_perf": {
+				"status": False
+			}
+		}
 		self.config = Config.get_conf(self, identifier=2817739402)
-		self.config.register_guild(**self.default_guild)
-		self.config.register_member(**self.default_member)
+		self.config.register_guild(**default_guild)
+		self.config.register_member(**default_member)
 
 	async def send(self, ctx: commands.Context, name: str, avatar: str, message: str, webhook: str):
 		payload = {
@@ -66,9 +73,9 @@ class Roleplay(commands.Cog):
 
 	@roleplay.command(name="link", usage="<channel_OR_webhook>")
 	@commands.guild_only()
-	async def _link(self, ctx: commands.Context, webhook: Union[discord.TextChannel, str]):
+	async def _link(self, ctx: commands.Context, webhook: Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel, discord.Thread, str]):
 		"""Set the default webhook to use when sending message."""
-		if isinstance(webhook, discord.TextChannel):
+		if isinstance(webhook, (discord.TextChannel, discord.StageChannel, discord.VoiceChannel, discord.Thread, str)):
 			webhook_dict = await self.config.guild(ctx.guild).webhooks()
 			webhook_url = webhook_dict[str(webhook.id)]
 		else:
@@ -81,7 +88,7 @@ class Roleplay(commands.Cog):
 
 	@roleplay.command(name="start", usage="<char_id> [backstage] [channel_OR_webhook]")
 	@commands.guild_only()
-	async def _perf_on(self, ctx: commands.Context, char_id: str, channel: Optional[discord.TextChannel], webhook: Optional[Union[discord.TextChannel, str]]):
+	async def _perf_on(self, ctx: commands.Context, char_id: str, channel: Optional[discord.TextChannel], webhook: Optional[Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel, discord.Thread, str]]):
 		"""
 		Start interactive performance.
 
@@ -96,7 +103,7 @@ class Roleplay(commands.Cog):
 		perf_dict.update({"status": True})
 		perf_dict.update({"char_id": char_id})
 		if webhook is not None:
-			if isinstance(webhook, discord.TextChannel):
+			if isinstance(webhook, (discord.TextChannel, discord.StageChannel, discord.VoiceChannel, discord.Thread, str)):
 				webhook_dict = await self.config.guild(ctx.guild).webhooks()
 				webhook_url = webhook_dict[str(webhook.id)]
 			else:
@@ -120,7 +127,7 @@ class Roleplay(commands.Cog):
 
 	@roleplay.command(name="cast", usage="<char_id_OR_user> [channel] <message>")
 	@commands.guild_only()
-	async def _execute(self, ctx: commands.Context, char: Union[discord.Member, str], webhook: Optional[discord.TextChannel], *, message: str):
+	async def _execute(self, ctx: commands.Context, char: Union[discord.Member, str], webhook: Optional[Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel, discord.Thread]], *, message: str):
 		"""
 		Send message using character or user.
 
@@ -132,7 +139,7 @@ class Roleplay(commands.Cog):
 		"""
 		if isinstance(char, discord.Member):
 			name = char.display_name
-			avatar_url = str(char.avatar_url)
+			avatar_url = str(char.display_avatar)
 		else:
 			character_dict = await self.config.guild(ctx.guild).characters()
 			try:
@@ -192,7 +199,7 @@ class Roleplay(commands.Cog):
 		# WIP
 
 	@roleplay.command()
-	async def playscript(self, ctx, script: str, webhook: discord.TextChannel):
+	async def playscript(self, ctx, script: str, webhook: Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel, discord.Thread]):
 		"""Play a script."""
 		data_path = cog_data_path(self)
 		guild_path = data_path.joinpath(str(ctx.message.guild.id))
@@ -221,7 +228,7 @@ class Roleplay(commands.Cog):
 	@webhook.command(name="add", aliases=["create"])
 	@commands.guild_only()
 	@checks.admin_or_permissions(manage_webhooks=True)
-	async def _add_webhook(self, ctx: commands.Context, channel: discord.TextChannel, webhook_url: str):
+	async def _add_webhook(self, ctx: commands.Context, channel: Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel, discord.Thread, str], webhook_url: str):
 		"""Add a webhook for this server."""
 		webhook_dict = await self.config.guild(ctx.guild).webhooks()
 		webhook_dict.update({channel.id: webhook_url})
@@ -231,7 +238,7 @@ class Roleplay(commands.Cog):
 	@webhook.command(name="delete", aliases=["del", "remove"])
 	@commands.guild_only()
 	@checks.admin_or_permissions(manage_webhooks=True)
-	async def _del_webhook(self, ctx: commands.Context, channel: discord.TextChannel):
+	async def _del_webhook(self, ctx: commands.Context, channel: Union[discord.TextChannel, discord.StageChannel, discord.VoiceChannel, discord.Thread, str]):
 		"""Delete a webhook on this server.."""
 		webhook_dict = await self.config.guild(ctx.guild).webhooks()
 		del webhook_dict[str(channel.id)]
